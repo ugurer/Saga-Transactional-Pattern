@@ -1,0 +1,149 @@
+version: '3.7'
+services:
+  # Zookeeper - Required by Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: ["CMD", "echo", "ruok", "|", "nc", "localhost", "2181", "|", "grep", "imok"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Kafka - Message broker
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Kafka UI - Web UI for Kafka
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+
+  # PostgreSQL for Order Service
+  order-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: orderdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init-scripts/init-order-db.sql:/docker-entrypoint-initdb.d/init-order-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d orderdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL for Inventory Service
+  inventory-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: inventorydb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./init-scripts/init-inventory-db.sql:/docker-entrypoint-initdb.d/init-inventory-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d inventorydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL for Payment Service
+  payment-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: paymentdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - ./init-scripts/init-payment-db.sql:/docker-entrypoint-initdb.d/init-payment-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d paymentdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL for Shipping Service
+  shipping-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: shippingdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5435:5432"
+    volumes:
+      - ./init-scripts/init-shipping-db.sql:/docker-entrypoint-initdb.d/init-shipping-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shippingdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Debezium - Change Data Capture
+  debezium:
+    image: debezium/connect:latest
+    depends_on:
+      - kafka
+      - order-db
+      - inventory-db
+      - payment-db
+      - shipping-db
+    ports:
+      - "8083:8083"
+    environment:
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: debezium_connect_config
+      OFFSET_STORAGE_TOPIC: debezium_connect_offsets
+      STATUS_STORAGE_TOPIC: debezium_connect_status
+      BOOTSTRAP_SERVERS: kafka:9092
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  order-data:
+  inventory-data:
+  payment-data:
+  shipping-data: 

@@ -1,0 +1,10 @@
+apiVersion: project.openshift.io/v1
+kind: Project
+metadata:
+  name: saga-demo
+  annotations:
+    openshift.io/description: "Saga Pattern PoC for Distributed Transactions Management"
+    openshift.io/display-name: "Saga Demo"
+spec:
+  finalizers:
+  - kubernetes 

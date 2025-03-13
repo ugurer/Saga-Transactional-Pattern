@@ -1,0 +1,75 @@
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: saga-service-trigger-template
+  namespace: saga-demo
+spec:
+  params:
+  - name: git-repo-url
+    description: The git repository url
+  - name: git-revision
+    description: The git revision
+    default: main
+  - name: service-name
+    description: Name of the service
+  - name: image-name
+    description: Name of the image to be built
+  - name: image-tag
+    description: Tag of the image to be built
+    default: latest
+  resourcetemplates:
+  - apiVersion: tekton.dev/v1beta1
+    kind: PipelineRun
+    metadata:
+      generateName: $(tt.params.service-name)-service-pipeline-run-
+      namespace: saga-demo
+    spec:
+      pipelineRef:
+        name: saga-service-pipeline
+      workspaces:
+      - name: shared-workspace
+        persistentVolumeClaim:
+          claimName: saga-pipeline-workspace-pvc
+      params:
+      - name: git-url
+        value: $(tt.params.git-repo-url)
+      - name: git-revision
+        value: $(tt.params.git-revision)
+      - name: service-name
+        value: $(tt.params.service-name)
+      - name: image-name
+        value: $(tt.params.image-name)
+      - name: image-tag
+        value: $(tt.params.image-tag)
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerBinding
+metadata:
+  name: saga-service-trigger-binding
+  namespace: saga-demo
+spec:
+  params:
+  - name: git-repo-url
+    value: $(body.repository.url)
+  - name: git-revision
+    value: $(body.head_commit.id)
+  - name: service-name
+    value: $(body.repository.name)
+  - name: image-name
+    value: image-registry.openshift-image-registry.svc:5000/saga-demo/$(body.repository.name)
+  - name: image-tag
+    value: $(body.head_commit.id)
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: EventListener
+metadata:
+  name: saga-service-event-listener
+  namespace: saga-demo
+spec:
+  serviceAccountName: pipeline
+  triggers:
+  - name: github-push
+    bindings:
+    - ref: saga-service-trigger-binding
+    template:
+      ref: saga-service-trigger-template 

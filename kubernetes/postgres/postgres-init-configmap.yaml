@@ -1,0 +1,150 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-script
+data:
+  init-multiple-databases.sh: |
+    #!/bin/bash
+    
+    set -e
+    set -u
+    
+    function create_database() {
+      local database=$1
+      echo "Creating database '$database'"
+      psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
+        CREATE DATABASE $database;
+        GRANT ALL PRIVILEGES ON DATABASE $database TO $POSTGRES_USER;
+    EOSQL
+    }
+    
+    if [ -n "$POSTGRES_MULTIPLE_DATABASES" ]; then
+      echo "Multiple database creation requested: $POSTGRES_MULTIPLE_DATABASES"
+      for db in $(echo $POSTGRES_MULTIPLE_DATABASES | tr ',' ' '); do
+        create_database $db
+      done
+      echo "Multiple databases created"
+    fi
+  
+  # Order Service Schema
+  01-order-schema.sql: |
+    \c order_db
+    
+    CREATE TABLE IF NOT EXISTS orders (
+      id SERIAL PRIMARY KEY,
+      order_id VARCHAR(255) NOT NULL UNIQUE,
+      customer_id VARCHAR(255) NOT NULL,
+      total_amount DECIMAL(10, 2) NOT NULL,
+      status VARCHAR(50) NOT NULL,
+      created_at TIMESTAMP NOT NULL,
+      updated_at TIMESTAMP NOT NULL
+    );
+    
+    CREATE TABLE IF NOT EXISTS order_items (
+      id SERIAL PRIMARY KEY,
+      order_id VARCHAR(255) NOT NULL,
+      product_id VARCHAR(255) NOT NULL,
+      quantity INT NOT NULL,
+      price DECIMAL(10, 2) NOT NULL,
+      FOREIGN KEY (order_id) REFERENCES orders(order_id)
+    );
+    
+    CREATE TABLE IF NOT EXISTS outbox (
+      id SERIAL PRIMARY KEY,
+      aggregate_type VARCHAR(255) NOT NULL,
+      aggregate_id VARCHAR(255) NOT NULL,
+      event_type VARCHAR(255) NOT NULL,
+      payload JSONB NOT NULL,
+      created_at TIMESTAMP NOT NULL
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_outbox_created_at ON outbox(created_at);
+  
+  # Inventory Service Schema
+  02-inventory-schema.sql: |
+    \c inventory_db
+    
+    CREATE TABLE IF NOT EXISTS inventory (
+      id SERIAL PRIMARY KEY,
+      product_id VARCHAR(255) NOT NULL UNIQUE,
+      product_name VARCHAR(255) NOT NULL,
+      available_quantity INT NOT NULL,
+      reserved_quantity INT NOT NULL,
+      created_at TIMESTAMP NOT NULL,
+      updated_at TIMESTAMP NOT NULL
+    );
+    
+    CREATE TABLE IF NOT EXISTS outbox (
+      id SERIAL PRIMARY KEY,
+      aggregate_type VARCHAR(255) NOT NULL,
+      aggregate_id VARCHAR(255) NOT NULL,
+      event_type VARCHAR(255) NOT NULL,
+      payload JSONB NOT NULL,
+      created_at TIMESTAMP NOT NULL
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_outbox_created_at ON outbox(created_at);
+    
+    -- Insert sample inventory data
+    INSERT INTO inventory (product_id, product_name, available_quantity, reserved_quantity, created_at, updated_at)
+    VALUES 
+      ('PROD-001', 'Laptop', 100, 0, NOW(), NOW()),
+      ('PROD-002', 'Smartphone', 200, 0, NOW(), NOW()),
+      ('PROD-003', 'Tablet', 150, 0, NOW(), NOW()),
+      ('PROD-004', 'Headphones', 300, 0, NOW(), NOW()),
+      ('PROD-005', 'Monitor', 50, 0, NOW(), NOW())
+    ON CONFLICT (product_id) DO NOTHING;
+  
+  # Payment Service Schema
+  03-payment-schema.sql: |
+    \c payment_db
+    
+    CREATE TABLE IF NOT EXISTS payments (
+      id SERIAL PRIMARY KEY,
+      order_id VARCHAR(255) NOT NULL UNIQUE,
+      amount DECIMAL(10, 2) NOT NULL,
+      payment_method VARCHAR(50) NOT NULL,
+      status VARCHAR(50) NOT NULL,
+      transaction_id VARCHAR(255),
+      created_at TIMESTAMP NOT NULL,
+      updated_at TIMESTAMP NOT NULL
+    );
+    
+    CREATE TABLE IF NOT EXISTS outbox (
+      id SERIAL PRIMARY KEY,
+      aggregate_type VARCHAR(255) NOT NULL,
+      aggregate_id VARCHAR(255) NOT NULL,
+      event_type VARCHAR(255) NOT NULL,
+      payload JSONB NOT NULL,
+      created_at TIMESTAMP NOT NULL
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_outbox_created_at ON outbox(created_at);
+  
+  # Shipping Service Schema
+  04-shipping-schema.sql: |
+    \c shipping_db
+    
+    CREATE TABLE IF NOT EXISTS shipments (
+      id SERIAL PRIMARY KEY,
+      order_id VARCHAR(255) NOT NULL UNIQUE,
+      recipient_name VARCHAR(255) NOT NULL,
+      shipping_address TEXT NOT NULL,
+      tracking_number VARCHAR(255),
+      status VARCHAR(50) NOT NULL,
+      created_at TIMESTAMP NOT NULL,
+      updated_at TIMESTAMP NOT NULL,
+      shipped_at TIMESTAMP,
+      delivered_at TIMESTAMP
+    );
+    
+    CREATE TABLE IF NOT EXISTS outbox (
+      id SERIAL PRIMARY KEY,
+      aggregate_type VARCHAR(255) NOT NULL,
+      aggregate_id VARCHAR(255) NOT NULL,
+      event_type VARCHAR(255) NOT NULL,
+      payload JSONB NOT NULL,
+      created_at TIMESTAMP NOT NULL
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_outbox_created_at ON outbox(created_at); 

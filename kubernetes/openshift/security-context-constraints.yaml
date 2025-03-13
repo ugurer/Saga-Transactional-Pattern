@@ -1,0 +1,31 @@
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: saga-demo-scc
+allowPrivilegedContainer: false
+allowHostNetwork: false
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: false
+defaultAllowPrivilegeEscalation: false
+forbiddenSysctls:
+- "*"
+readOnlyRootFilesystem: false
+runAsUser:
+  type: MustRunAsRange
+seLinuxContext:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+fsGroup:
+  type: RunAsAny
+volumes:
+- configMap
+- emptyDir
+- persistentVolumeClaim
+- secret
+- projected
+users:
+- system:serviceaccount:saga-demo:default 

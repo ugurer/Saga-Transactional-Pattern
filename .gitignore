@@ -1,0 +1,63 @@
+# Compiled class files
+*.class
+
+# Log files
+*.log
+logs/
+
+# Package files
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Maven
+target/
+.mvn/wrapper/maven-wrapper.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Eclipse
+.classpath
+.project
+.settings/
+.metadata/
+bin/
+
+# VS Code
+.vscode/
+.factorypath
+
+# Spring Boot
+spring-boot-starter/
+
+# Docker volumes
+data/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+
+# Application specific
+application-local.properties
+application-local.yml
+application-dev.properties
+application-dev.yml
+
+# Kubernetes
+kubeconfig 

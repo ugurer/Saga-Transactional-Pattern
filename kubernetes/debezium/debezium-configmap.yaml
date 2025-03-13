@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: debezium-connector-config
+  labels:
+    app: debezium-connect
+data:
+  order-connector.json: |
+    {
+      "name": "order-connector",
+      "config": {
+        "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+        "database.hostname": "postgres-order",
+        "database.port": "5432",
+        "database.user": "postgres",
+        "database.password": "postgres",
+        "database.dbname": "orderdb",
+        "database.server.name": "order-service",
+        "table.include.list": "public.outbox",
+        "transforms": "outbox",
+        "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+        "transforms.outbox.route.topic.replacement": "${routedByValue}",
+        "transforms.outbox.table.field.event.id": "id",
+        "transforms.outbox.table.field.event.key": "aggregateid",
+        "transforms.outbox.table.field.event.type": "type",
+        "transforms.outbox.table.field.event.payload": "payload",
+        "transforms.outbox.route.by.field": "type",
+        "transforms.outbox.table.fields.additional.placement": "type:header:eventType"
+      }
+    }
+  inventory-connector.json: |
+    {
+      "name": "inventory-connector",
+      "config": {
+        "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+        "database.hostname": "postgres-inventory",
+        "database.port": "5432",
+        "database.user": "postgres",
+        "database.password": "postgres",
+        "database.dbname": "inventorydb",
+        "database.server.name": "inventory-service",
+        "table.include.list": "public.outbox",
+        "transforms": "outbox",
+        "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+        "transforms.outbox.route.topic.replacement": "${routedByValue}",
+        "transforms.outbox.table.field.event.id": "id",
+        "transforms.outbox.table.field.event.key": "aggregateid",
+        "transforms.outbox.table.field.event.type": "type",
+        "transforms.outbox.table.field.event.payload": "payload",
+        "transforms.outbox.route.by.field": "type",
+        "transforms.outbox.table.fields.additional.placement": "type:header:eventType"
+      }
+    }
+  payment-connector.json: |
+    {
+      "name": "payment-connector",
+      "config": {
+        "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+        "database.hostname": "postgres-payment",
+        "database.port": "5432",
+        "database.user": "postgres",
+        "database.password": "postgres",
+        "database.dbname": "paymentdb",
+        "database.server.name": "payment-service",
+        "table.include.list": "public.outbox",
+        "transforms": "outbox",
+        "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+        "transforms.outbox.route.topic.replacement": "${routedByValue}",
+        "transforms.outbox.table.field.event.id": "id",
+        "transforms.outbox.table.field.event.key": "aggregateid",
+        "transforms.outbox.table.field.event.type": "type",
+        "transforms.outbox.table.field.event.payload": "payload",
+        "transforms.outbox.route.by.field": "type",
+        "transforms.outbox.table.fields.additional.placement": "type:header:eventType"
+      }
+    }
+  shipping-connector.json: |
+    {
+      "name": "shipping-connector",
+      "config": {
+        "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+        "database.hostname": "postgres-shipping",
+        "database.port": "5432",
+        "database.user": "postgres",
+        "database.password": "postgres",
+        "database.dbname": "shippingdb",
+        "database.server.name": "shipping-service",
+        "table.include.list": "public.outbox",
+        "transforms": "outbox",
+        "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+        "transforms.outbox.route.topic.replacement": "${routedByValue}",
+        "transforms.outbox.table.field.event.id": "id",
+        "transforms.outbox.table.field.event.key": "aggregateid",
+        "transforms.outbox.table.field.event.type": "type",
+        "transforms.outbox.table.field.event.payload": "payload",
+        "transforms.outbox.route.by.field": "type",
+        "transforms.outbox.table.fields.additional.placement": "type:header:eventType"
+      }
+    } 

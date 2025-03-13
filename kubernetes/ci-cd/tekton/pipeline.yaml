@@ -1,0 +1,84 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: saga-service-pipeline
+  namespace: saga-demo
+spec:
+  workspaces:
+  - name: shared-workspace
+  params:
+  - name: git-url
+    type: string
+    description: git repository url
+  - name: git-revision
+    type: string
+    description: git revision
+    default: "main"
+  - name: service-name
+    type: string
+    description: name of the service (order, inventory, payment, shipping)
+  - name: image-name
+    type: string
+    description: image name to be built
+  - name: image-tag
+    type: string
+    description: image tag
+    default: "latest"
+  tasks:
+  - name: fetch-repository
+    taskRef:
+      name: git-clone
+      kind: ClusterTask
+    workspaces:
+    - name: output
+      workspace: shared-workspace
+    params:
+    - name: url
+      value: $(params.git-url)
+    - name: revision
+      value: $(params.git-revision)
+    - name: deleteExisting
+      value: "true"
+  - name: run-tests
+    taskRef:
+      name: maven
+      kind: ClusterTask
+    runAfter:
+    - fetch-repository
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: GOALS
+      value: ["test"]
+    - name: CONTEXT_DIR
+      value: "saga-demo/$(params.service-name)-service"
+  - name: build-image
+    taskRef:
+      name: buildah
+      kind: ClusterTask
+    runAfter:
+    - run-tests
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: IMAGE
+      value: $(params.image-name):$(params.image-tag)
+    - name: CONTEXT
+      value: "saga-demo/$(params.service-name)-service"
+    - name: DOCKERFILE
+      value: "Dockerfile"
+  - name: update-deployment
+    taskRef:
+      name: openshift-client
+      kind: ClusterTask
+    runAfter:
+    - build-image
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: SCRIPT
+      value: |
+        oc set image deployment/$(params.service-name)-service $(params.service-name)-service=$(params.image-name):$(params.image-tag) -n saga-demo 

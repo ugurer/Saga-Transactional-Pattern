@@ -1,0 +1,35 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: order-service-pipeline-run-
+  namespace: saga-demo
+spec:
+  pipelineRef:
+    name: saga-service-pipeline
+  workspaces:
+  - name: shared-workspace
+    persistentVolumeClaim:
+      claimName: saga-pipeline-workspace-pvc
+  params:
+  - name: git-url
+    value: "https://github.com/yourusername/saga-transaction-pattern.git"
+  - name: git-revision
+    value: "main"
+  - name: service-name
+    value: "order"
+  - name: image-name
+    value: "image-registry.openshift-image-registry.svc:5000/saga-demo/order-service"
+  - name: image-tag
+    value: "1.0.0"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: saga-pipeline-workspace-pvc
+  namespace: saga-demo
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi 
